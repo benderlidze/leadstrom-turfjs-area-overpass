@@ -5,7 +5,7 @@ import { promises as fsPromises } from 'fs';
 
 fetch("https://serg.one/google-save-poly-api/api_v2.php?session=1cb3aa22-9443-46f0-a080-40823852c1d3")
     .then(response => response.json())
-    .then(data => {
+    .then(async data => {
         console.log(data.polygons.polygons);
 
         const polygons = data.polygons.polygons.map(polygon => {
@@ -32,15 +32,17 @@ fetch("https://serg.one/google-save-poly-api/api_v2.php?session=1cb3aa22-9443-46
         console.log('bboxPolygon', JSON.stringify(bufferedBBox));
 
         const [x0, y0, x1, y1] = bufferedBBox;//reverse for overpass
-        overpassQuery([y0, x0, y1, x1].join(','));
+        const results = await overpassQuery([y0, x0, y1, x1].join(','), polygons);
+
+        console.log('results', JSON.stringify(results));
 
     });
 
-const overpassQuery = async (bbox) => {
+const overpassQuery = async (bbox, polygons) => {
 
     const query = `[out:json];(way["highway"="motorway"](${bbox});way["highway"="trunk"](${bbox}););convert item ::=::,::geom=geom(),_osm_type=type();out geom;`;    // const query = `
-
     console.log('query', query);
+
     const api = await fetch('https://www.overpass-api.de/api/interpreter?', {
         method: 'POST',
         headers: {
@@ -49,8 +51,8 @@ const overpassQuery = async (bbox) => {
         },
         body: query
     });
-    const answer = await api.json();
-    const geo = answer.elements.map(el => {
+    const overpassResults = await api.json();
+    const overpassGeo = overpassResults.elements.map(el => {
         return {
             "type": "Feature",
             "properties": {},
@@ -58,27 +60,34 @@ const overpassQuery = async (bbox) => {
         }
     })
 
-
     //console.log('answer', JSON.stringify(geo, null));
     //console.log('osmtogeojson(answer);', JSON.stringify(osmtogeojson(answer)));
 
-    const buffer = geo.map(item => turf.buffer(item, 1000, { units: 'meters' }));
-    console.log('buffer', JSON.stringify(buffer, null));
+    function bufferIntersection(overpassGeo, bufferDistance) {
+        const buffer = overpassGeo.map(item => turf.buffer(item, bufferDistance, { units: 'meters' }));
+        // console.log('buffer', JSON.stringify(buffer, null));
+        // console.log('---------------------------------',);
+        const union = buffer.reduce((acc, item) => {
+            return turf.union(acc, item);
+        });
+        // console.log('union', JSON.stringify(union, null));
+        const intersection = polygons.map(polygon => {
+            return turf.intersect(polygon, union);
+        })
+        console.log('intersection', JSON.stringify(intersection));
+        return intersection;
+    }
 
-    console.log('---------------------------------',);
-
-    const union = buffer.reduce((acc, item) => {
-        return turf.union(acc, item);
-    });
-    console.log('union', JSON.stringify(union, null));
+    //await fsPromises.writeFile('newFile.txt', JSON.stringify(geo, null, 2), 'utf8');
 
 
+    const m200 = bufferIntersection(overpassGeo, 200)
+    const m500 = bufferIntersection(overpassGeo, 500)
 
-    // Writing to a file
-    await fsPromises.writeFile('newFile.txt', JSON.stringify(geo, null, 2), 'utf8');
+    console.log('done');
 
-
-
-
-    return answer
+    return {
+        m200,
+        m500
+    }
 }
