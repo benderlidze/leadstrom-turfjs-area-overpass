@@ -3,7 +3,7 @@ import * as turf from '@turf/turf';
 import fetch from 'node-fetch'
 import { promises as fsPromises } from 'fs';
 
-fetch("https://serg.one/google-save-poly-api/api_v2.php?session=1cb3aa22-9443-46f0-a080-40823852c1d3")
+fetch("https://serg.one/google-save-poly-api/api_v2.php?session=deca518e-9744-4a30-8ce3-2b246ceae73c")
     .then(response => response.json())
     .then(async data => {
         console.log(data.polygons.polygons);
@@ -60,7 +60,7 @@ const overpassQuery = async (bbox, polygons) => {
         }
     })
 
-    //console.log('answer', JSON.stringify(geo, null));
+    console.log('answer', JSON.stringify(overpassGeo, null));
     //console.log('osmtogeojson(answer);', JSON.stringify(osmtogeojson(answer)));
 
     function bufferIntersection(overpassGeo, bufferDistance) {
@@ -71,11 +71,17 @@ const overpassQuery = async (bbox, polygons) => {
         console.log('---------------------------------',);
         console.log('union', JSON.stringify(union));
         console.log('---------------------------------',);
-        const intersection = polygons.map(polygon => {
-            return turf.intersect(polygon, union);
+        const intersections = polygons.map(polygon => {
+
+            const intersection = turf.intersect(polygon, union);
+            const area = intersection ? turf.area(intersection) : 0;
+            return {
+                intersection,
+                area
+            }
         })
-        console.log('intersection', JSON.stringify(intersection));
-        return intersection;
+        console.log('intersection', JSON.stringify(intersections));
+        return intersections;
     }
 
     //await fsPromises.writeFile('newFile.txt', JSON.stringify(geo, null, 2), 'utf8');
