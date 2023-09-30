@@ -65,12 +65,12 @@ const overpassQuery = async (bbox, polygons) => {
 
     function bufferIntersection(overpassGeo, bufferDistance) {
         const buffer = overpassGeo.map(item => turf.buffer(item, bufferDistance, { units: 'meters' }));
-        // console.log('buffer', JSON.stringify(buffer, null));
-        // console.log('---------------------------------',);
         const union = buffer.reduce((acc, item) => {
             return turf.union(acc, item);
         });
-        // console.log('union', JSON.stringify(union, null));
+        console.log('---------------------------------',);
+        console.log('union', JSON.stringify(union));
+        console.log('---------------------------------',);
         const intersection = polygons.map(polygon => {
             return turf.intersect(polygon, union);
         })
